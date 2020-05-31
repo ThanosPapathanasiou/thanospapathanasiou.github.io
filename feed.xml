@@ -293,7 +293,72 @@ dotnet run 40 true
     <link href="https://thanos.codes/blog/setting-up-eleventy-to-work-with-github-pages/"/>
     <updated>2020-05-31T01:00:00+01:00</updated>
     <id>https://thanos.codes/blog/setting-up-eleventy-to-work-with-github-pages/</id>
-    <content type="html">&lt;p&gt;I did some stuff!&lt;/p&gt;
+    <content type="html">&lt;p&gt;Ever since github started offering their GitHub Pages to use as a personal website for its users, I&#39;ve been interested in using them. I&#39;ve even tried setting mine up a couple of times but I always found that configuring jekyll and finding a proper theme that would play well with whatever versions of rubygems I already had was a pain.&lt;/p&gt;
+&lt;p&gt;Furthermore, there was no reason in my mind to have yet another development environment (Ruby&#39;s) installed on my local machine and kept up to date so that I could write a blog post once in a blue moon.&lt;/p&gt;
+&lt;p&gt;So, in the end, I never bothered with actually using my github page for quite some time.&lt;/p&gt;
+&lt;p&gt;I do tend prioritize things lower if there is significant friction when doing something with them and blogging with the github pages had quite a bit of friction involved.&lt;/p&gt;
+&lt;p&gt;It had been going like that for a while until a few days ago when I came across a youtube video about &lt;a href=&quot;https://www.youtube.com/watch?v=j8mJrhhdHWc&quot;&gt;setting up a static site with eleventy.&lt;/a&gt; The tool seemed to get out of your way as much as possible and allowed you to simply write your markdown files to be processed into pages.&lt;/p&gt;
+&lt;p&gt;Within a few minutes I was convinced. I started yet again the process of setting up my github page and working with eleventy to create a decent static page as output.&lt;/p&gt;
+&lt;p&gt;Everything was working just fine and dandy until the time came to actually have github host the pages that eleventy outputs. There were alot of websites documenting how to do this process but I found them to be either too complicated (setup github actions, CI servers, etc) or the result would not be clean enough (have the eleventy static site output commited to the same repository as the code).&lt;/p&gt;
+&lt;p&gt;In the end, there was this &lt;a href=&quot;https://tomhiskey.co.uk/posts/deploying-eleventy-to-github-pages-one-way/&quot;&gt;blogpost by Tom Hiskey&lt;/a&gt; that mentioned in the TLDR:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;If you&#39;re trying to deploy an Eleventy site to GitHub Pages, one option is to build it locally and fiddle about with settings.&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;But, as I already mentioned, I don&#39;t want to mix my static site (the output) with the code that is responsible for that (the input)&lt;/p&gt;
+&lt;p&gt;So I did the following:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Create a base directory, let&#39;s call it &amp;quot;blog&amp;quot;&lt;/li&gt;
+&lt;li&gt;Inside that directory we&#39;ll clone the github page, &lt;a href=&quot;https://github.com/ThanosPapathanasiou/thanospapathanasiou.github.io&quot;&gt;thanospapathanasiou.github.io&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;And we will also initialize another git folder called &lt;a href=&quot;https://github.com/ThanosPapathanasiou/personal-blog&quot;&gt;personal-blog&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Our folder structure will end up being like this:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;./blog/
+./blog/thanospapathanasiou.github.io (git repository 1)
+./blog/personal-blog/ (git repository 2)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;With this folder structure, you can start writing your blogposts in the personal-blog folder and have eleventy running and serving them locally for any tweeks you might need to do before you commit them.&lt;/p&gt;
+&lt;p&gt;Be careful though. If you want to keep things clean and separated like I do then you don&#39;t want to commit the static html output in the personal-blog folder, you want to commit them to your github page.&lt;/p&gt;
+&lt;p&gt;The problem is that copying and pasting the changes from codingblog/_site/* to thanospapathanasiou.github.io/* can be such a pain.&lt;/p&gt;
+&lt;p&gt;Thankfully the good ol&#39; Makefile comes to the resque! This is the &lt;a href=&quot;https://github.com/ThanosPapathanasiou/personal-blog/blob/master/Makefile&quot;&gt;one&lt;/a&gt; I wrote for my purposes.&lt;/p&gt;
+&lt;p&gt;You basically need three things:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Clean the codingblog/_site/* so you start from an empty base.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;rm -rf _site/*
+&lt;/code&gt;&lt;/pre&gt;
+&lt;ol start=&quot;2&quot;&gt;
+&lt;li&gt;Build your eleventy static site into codingblog/_site/*&lt;/li&gt;
+&lt;/ol&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;npx @11ty/eleventy eleventy --input=site --output=_site
+&lt;/code&gt;&lt;/pre&gt;
+&lt;ol start=&quot;3&quot;&gt;
+&lt;li&gt;
+&lt;p&gt;finally, we need to copy that static file into our github pages folder.&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;First we need to clean up the github pages folder&lt;/li&gt;
+&lt;/ol&gt;
+&lt;pre&gt;&lt;code&gt;find ../thanospapathanasiou.github.io/ -mindepth 1 ! &#39;(&#39; -path &#39;../thanospapathanasiou.github.io/.git/*&#39; -or -name &#39;.git&#39; -or -name &#39;CNAME&#39; &#39;)&#39; -delete
+&lt;/code&gt;&lt;/pre&gt;
+&lt;ol start=&quot;2&quot;&gt;
+&lt;li&gt;Copy the output to the github page folder&lt;/li&gt;
+&lt;/ol&gt;
+&lt;pre&gt;&lt;code&gt;cp -a ./_site/. ../thanospapathanasiou.github.io/
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Step 3.1 is a bit complicated so let&#39;s break it down a bit.&lt;/p&gt;
+&lt;p&gt;Basically what we need to do is find all the items in the github page directory that are &lt;strong&gt;NOT&lt;/strong&gt; in its .git folder, are not the actual .git folder itself, or the CNAME file (that&#39;s the file that has the custom domain name your blog will point to)&lt;/p&gt;
+&lt;p&gt;Now my proccess from creating a new blogpost is quite straightforward and with a lot less friction!&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Create a folder with the blogpost&#39;s permalink in the &lt;code&gt;/personal-blog/site/blog&lt;/code&gt; folder.
+Let&#39;s say that the name of that folder is &lt;code&gt;setting-up-eleventy-to-work-with-github-pages&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Create a &lt;code&gt;index.md&lt;/code&gt; file and start writing&lt;/li&gt;
+&lt;li&gt;Open a terminal in the &lt;code&gt;/personal-blog/&lt;/code&gt; folder and run &lt;code&gt;make run&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Have your browser navigate to &lt;code&gt;http://localhost:8080&lt;/code&gt; and watch it for anything not displaying correctly&lt;/li&gt;
+&lt;li&gt;Once you are done with editing, run &lt;code&gt;make publish&lt;/code&gt; and the changes will appear in the github directory&lt;/li&gt;
+&lt;li&gt;Commit and push the changes from both repositories&lt;/li&gt;
+&lt;li&gt;Profit?&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;I&#39;ve found that the above proccess works really well for me, if you want to have a look at the repository for yourself then the link is &lt;a href=&quot;https://github.com/ThanosPapathanasiou/personal-blog&quot;&gt;here&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Happy blogging!&lt;/p&gt;
 </content>
   </entry>
 </feed>
