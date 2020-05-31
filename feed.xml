@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Random coding knowledge</title>
+  <subtitle></subtitle>
+  <link href="https://thanos.codes/feed.xml" rel="self"/>
+  <link href="https://thanos.codes"/>
+  <updated>2020-05-31T01:00:00+01:00</updated>
+  <id>https://thanos.codes</id>
+  <author>
+    <name>Thanos Papathanasiou</name>
+    <email>thanospapathanasiou@hotmail.com</email>
+  </author>
+  
+  <entry>
+    <title>Implementing conditional resolution of dependencies with Castle.Windsor</title>
+    <link href="https://thanos.codes/blog/implementing-conditional-resolution-of-dependencies-with-castle-windsor/"/>
+    <updated>2020-05-27T01:00:00+01:00</updated>
+    <id>https://thanos.codes/blog/implementing-conditional-resolution-of-dependencies-with-castle-windsor/</id>
+    <content type="html">&lt;p&gt;Let’s say you are given the task of creating a console program to calculate the given element of the Fibonacci sequence.&lt;/p&gt;
+&lt;p&gt;Great, that’s easy enough. You can just use your favorite tools: VS Code and dotnet core.&lt;/p&gt;
+&lt;p&gt;You just open up your terminal, cd into the directory of your projects and type:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;
+mkdir DependencyInjectionPlayground
+cd DependencyInjectionPlayground
+dotnet new console
+code .
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After a little thinking you write the code:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-csharp&quot;&gt;
+using System;
+
+namespace DependencyInjectionPlayground
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var n = Convert.ToInt32(args[0]);
+            var fibonacciCalculator = new FibonacciCalculator();
+            var output = fibonacciCalculator.Calculate(n);
+            Console.WriteLine($&amp;quot;The {n}-th element of the fibonacci sequence is {output}&amp;quot;);
+        }
+    }
+ 
+    public class FibonacciCalculator
+    {
+        //Calculates the n-th element of the fibonacci sequence
+        public long Calculate(int n)
+        {
+            if (n &amp;lt;= 2) return 1;
+            return Calculate(n-1) + Calculate(n-2);
+        }
+    }
+}
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Then click save and go back to the console.&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;
+dotnet build
+dotnet run 5
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;And you get the output:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;
+&amp;quot;The 5-th element of the fibonacci sequence is 5&amp;quot;
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Job well done.&lt;/p&gt;
+&lt;p&gt;That is until you realize that for large numbers it gets exponentially slower because of the nature of this recursive algorithm.&lt;/p&gt;
+&lt;p&gt;The damn thing has a time complexity of O(2^n)&lt;/p&gt;
+&lt;p&gt;As Rocky would say:&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://thanos.codes/blog/implementing-conditional-resolution-of-dependencies-with-castle-windsor/images/rocky.png&quot; alt=&quot;Motivational Rocky!&quot;&gt;&lt;/p&gt;
+&lt;p&gt;So, after you get your inspirational speech you go online and after some googling and Wikipedia reading you come across the article on Memoization.&lt;/p&gt;
+&lt;p&gt;You update your algorithm to take advantage of your newfound knowledge:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-csharp&quot;&gt;
+public class MemoizedFibonacciCalculator
+{
+    private long[] memoized;
+    private int current;
+
+    public MemoizedFibonacciCalculator()
+    {
+        memoized = new long[32];
+        memoized[0] = 0;
+        memoized[1] = 1;
+        memoized[2] = 1;
+        current = 2;
+    }
+
+    //Calculates the n-th element of the fibonacci sequence
+    public long Calculate(int n)
+    {
+        //if we have calculated the n-th element already, return it
+        if (n &amp;lt;= current) return memoized[n];
+
+        //if we haven&#39;t then resize the array to hold the new values.
+        Array.Resize(ref memoized, n + 1);
+
+        //Calculate all the elements between the currently calculated element
+        //and the n-th element and then save them.
+        for (int i = current + 1; i &amp;lt;= n; i++)
+        {
+            memoized[i] = memoized[i - 2] + memoized[i - 1];
+        }
+
+        current = n;
+        return memoized[current];
+    }
+}
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;It seems that using our original recursive algorithm sacrifices cpu speed versus the updated algorithm using memoization which sacrifices ram.&lt;/p&gt;
+&lt;p&gt;We don’t want to limit our users to one or the other as we don’t know where they are going to run this code.&lt;/p&gt;
+&lt;p&gt;It seems we’ll have to provide them the option to choose the algorithm on runtime.&lt;/p&gt;
+&lt;p&gt;This is where dependency injection comes into play. Switch to your trusty console and type:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;
+dotnet add package Castle.Windsor
+dotnet restore
+dotnet build
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After some reading of the Castle Windsor documentation you come across this interface: IHandlerSelector&lt;/p&gt;
+&lt;p&gt;A “go to definition” returns this:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+    Summary:
+
+    Implementors of this interface allow to extend the way the container perform component resolution based on some application specific business logic.
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Perfect.&lt;/p&gt;
+&lt;p&gt;Let’s write a generic handler selector class that would allow us to apply basic selection criteria to the requested implementations:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-csharp&quot;&gt;
+public class GenericHandlerSelector : IHandlerSelector
+{
+    private readonly Func&amp;lt;Type, bool&amp;gt; filter;
+    private readonly Func&amp;lt;IHandler, bool&amp;gt; predicate;
+
+    public GenericHandlerSelector(Func&amp;lt;Type, bool&amp;gt; filter, Func&amp;lt;IHandler, bool&amp;gt; predicate)
+    {
+        this.filter = filter;
+        this.predicate = predicate;
+    }
+
+    public bool HasOpinionAbout(string key, Type service)
+    {
+        return filter(service);
+    }
+
+    public IHandler SelectHandler(string key, Type service, IHandler[] handlers)
+    {
+        return handlers.First(predicate);
+    }
+}
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This basically allows the bootstrap container code to apply logic to what implementation of an interface the container is going to use.&lt;/p&gt;
+&lt;p&gt;The code finally looks like this:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-csharp&quot;&gt;
+using System;
+using System.Linq;
+using Castle.Windsor;
+using Castle.MicroKernel;
+using Castle.MicroKernel.Registration;
+
+namespace DependencyInjectionPlayground
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            bool useMemoization = Convert.ToBoolean(args[1]);
+            var container = BootstrapContainer(useMemoization);
+
+            var n = Convert.ToInt32(args[0]);
+            var fibonacciCalculator = container.Resolve&amp;lt;IFibonacciCalculator&amp;gt;();
+
+            var output = fibonacciCalculator.Calculate(n);
+            Console.WriteLine($&amp;quot;The {n}-th element of the fibonacci sequence is {output}&amp;quot;);
+
+        }
+
+        static IWindsorContainer BootstrapContainer(bool useMemoization)
+        {
+            IWindsorContainer container = new WindsorContainer();
+
+            container.Register(Component.For&amp;lt;IFibonacciCalculator&amp;gt;().ImplementedBy&amp;lt;FibonacciCalculator&amp;gt;());
+            container.Register(Component.For&amp;lt;IFibonacciCalculator&amp;gt;().ImplementedBy&amp;lt;MemoizedFibonacciCalculator&amp;gt;());
+
+            // filter -&amp;gt; this handler only affects implementations of IFibonacciCalculator
+            // handler -&amp;gt; depending on input, choose the implementation we want
+            var memoizationHandler = new GenericHandlerSelector(
+                (filter) =&amp;gt; filter == typeof(IFibonacciCalculator),
+                (handler) =&amp;gt; useMemoization
+                    ? handler.ComponentModel.Implementation == typeof(MemoizedFibonacciCalculator)
+                    : handler.ComponentModel.Implementation == typeof(FibonacciCalculator)
+                );
+
+            container.Kernel.AddHandlerSelector(memoizationHandler);
+
+            return container;
+        }
+
+    }
+
+    public class GenericHandlerSelector : IHandlerSelector
+    {
+        private readonly Func&amp;lt;Type, bool&amp;gt; filter;
+        private readonly Func&amp;lt;IHandler, bool&amp;gt; predicate;
+
+        public GenericHandlerSelector(Func&amp;lt;Type, bool&amp;gt; filter, Func&amp;lt;IHandler, bool&amp;gt; predicate)
+        {
+            this.filter = filter;
+            this.predicate = predicate;
+        }
+
+        public bool HasOpinionAbout(string key, Type service)
+        {
+            return filter(service);
+        }
+
+        public IHandler SelectHandler(string key, Type service, IHandler[] handlers)
+        {
+            return handlers.First(predicate);
+        }
+    }
+
+    public interface IFibonacciCalculator
+    {
+        //Calculates the n-th element of the fibonacci sequence
+        long Calculate(int n);
+    }
+
+    public class FibonacciCalculator : IFibonacciCalculator
+    {
+        //Calculates the n-th element of the fibonacci sequence
+        public long Calculate(int n)
+        {
+            if (n &amp;lt;= 2) return 1;
+            return Calculate(n - 1) + Calculate(n - 2);
+        }
+
+    }
+
+    public class MemoizedFibonacciCalculator : IFibonacciCalculator
+    {
+        private long[] memoized;
+        private int current;
+
+        public MemoizedFibonacciCalculator()
+        {
+            memoized = new long[32];
+            memoized[0] = 0;
+            memoized[1] = 1;
+            memoized[2] = 1;
+            current = 2;
+        }
+
+        //Calculates the n-th element of the fibonacci sequence
+        public long Calculate(int n)
+        {
+            //if we have calculated the n-th element already, return it
+            if (n &amp;lt;= current) return memoized[n];
+
+            Array.Resize(ref memoized, n + 1);
+
+            for (int i = current + 1; i &amp;lt;= n; i++)
+            {
+                memoized[i] = memoized[i - 2] + memoized[i - 1];
+            }
+            current = n;
+            return memoized[current];
+        }
+    }
+}
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;If we switch back to our trusty console and do a:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;
+dotnet build
+dotnet run 40 false
+dotnet run 40 true
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The false/true is user input for the use or not of Memoization.&lt;/p&gt;
+&lt;p&gt;Unless you are running this on a supercomputer, you’ll notice the difference in speed between the two algorithms.&lt;/p&gt;
+&lt;p&gt;If you want to do a little bit of digging I’d suggest measuring the exact difference in the time it took to run both of these using System.Diagnostics&lt;/p&gt;
+&lt;p&gt;Happy coding!&lt;/p&gt;
+</content>
+  </entry>
+  
+  <entry>
+    <title>Setting up eleventy to work with github pages</title>
+    <link href="https://thanos.codes/blog/setting-up-eleventy-to-work-with-github-pages/"/>
+    <updated>2020-05-31T01:00:00+01:00</updated>
+    <id>https://thanos.codes/blog/setting-up-eleventy-to-work-with-github-pages/</id>
+    <content type="html">&lt;p&gt;I did some stuff!&lt;/p&gt;
+</content>
+  </entry>
+</feed>
