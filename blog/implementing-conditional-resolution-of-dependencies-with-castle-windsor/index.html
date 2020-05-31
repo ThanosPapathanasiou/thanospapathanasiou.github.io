@@ -37,7 +37,7 @@ dotnet run 5
 </code></pre><p>And you get the output:</p><pre><code class="language-bash">
 &quot;The 5-th element of the fibonacci sequence is 5&quot;
 
-</code></pre><p>That is until you realize that for large numbers it gets exponentially slower because of the nature of this recursive algorithm.</p><p>The damn thing has a time complexity of O(2^n)</p><p>As Rocky would say:</p><p><img src="/images/rocky.png" alt="Motivational Rocky!"></p><p>So, after you get your inspirational speech you go online and after some googling and Wikipedia reading you come across the article on Memoization.</p><p>You update your algorithm to take advantage of your newfound knowledge:</p><pre><code class="language-csharp">
+</code></pre><p>Job well done.</p><p>That is until you realize that for large numbers it gets exponentially slower because of the nature of this recursive algorithm.</p><p>The damn thing has a time complexity of O(2^n)</p><p>As Rocky would say:</p><p><img src="./images/rocky.png" alt="Motivational Rocky!"></p><p>So, after you get your inspirational speech you go online and after some googling and Wikipedia reading you come across the article on Memoization.</p><p>You update your algorithm to take advantage of your newfound knowledge:</p><pre><code class="language-csharp">
 public class MemoizedFibonacciCalculator
 {
     private long[] memoized;
