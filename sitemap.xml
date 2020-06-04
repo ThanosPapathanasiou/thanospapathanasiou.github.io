@@ -2,22 +2,27 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
-    <loc>/</loc>
+    <loc>https://thanos.codes/</loc>
     <lastmod>2020-05-01</lastmod>
+    <changefreq>Weekly</changefreq>
+    <priority>1.0</priority>
   </url>
   
   <url>
-    <loc>/about/</loc>
+    <loc>https://thanos.codes/about/</loc>
     <lastmod>2020-05-02</lastmod>
+    
   </url>
   
   <url>
-    <loc>/blog/implementing-conditional-resolution-of-dependencies-with-castle-windsor/</loc>
+    <loc>https://thanos.codes/blog/implementing-conditional-resolution-of-dependencies-with-castle-windsor/</loc>
     <lastmod>2020-05-27</lastmod>
+    
   </url>
   
   <url>
-    <loc>/blog/setting-up-eleventy-to-work-with-github-pages/</loc>
+    <loc>https://thanos.codes/blog/setting-up-eleventy-to-work-with-github-pages/</loc>
     <lastmod>2020-05-31</lastmod>
+    
   </url>
 </urlset>
