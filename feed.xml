@@ -4,7 +4,7 @@
   <subtitle></subtitle>
   <link href="https://thanos.codes/feed.xml" rel="self"/>
   <link href="https://thanos.codes"/>
-  <updated>2020-05-31T01:00:00+01:00</updated>
+  <updated>2020-06-08T01:00:00+01:00</updated>
   <id>https://thanos.codes</id>
   <author>
     <name>Thanos Papathanasiou</name>
@@ -359,6 +359,292 @@ Let&#39;s say that the name of that folder is &lt;code&gt;setting-up-eleventy-to
 &lt;/ol&gt;
 &lt;p&gt;I&#39;ve found that the above proccess works really well for me, if you want to have a look at the repository for yourself then the link is &lt;a href=&quot;https://github.com/ThanosPapathanasiou/personal-blog&quot;&gt;here&lt;/a&gt;&lt;/p&gt;
 &lt;p&gt;Happy blogging!&lt;/p&gt;
+</content>
+  </entry>
+  
+  <entry>
+    <title>Using FSLexYacc, the F# lexer and parser</title>
+    <link href="https://thanos.codes/blog/using-fslexyacc-the-fsharp-lexer-and-parser/"/>
+    <updated>2020-06-08T01:00:00+01:00</updated>
+    <id>https://thanos.codes/blog/using-fslexyacc-the-fsharp-lexer-and-parser/</id>
+    <content type="html">&lt;p&gt;Lately I&#39;ve been playing around with F# and specifically with using it for lexing and parsing. I&#39;ve had to dig around a bit to get all the information needed to understand how to get a simple project up and running so I thought compiling that information would be a good idea.&lt;/p&gt;
+&lt;p&gt;Here&#39;s a step by step instruction to help you get up and running.&lt;/p&gt;
+&lt;h4&gt;Setting up a project to work with FsLexYacc&lt;/h4&gt;
+&lt;hr&gt;
+&lt;p&gt;Let&#39;s start with a brand new F# console app:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;mkdir lexing-and-parsing
+cd lexing-and-parsing
+dotnet new console -lang=F#
+dotnet run
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That should give us the default console output:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;Hello world from F#
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In order to use the F# lexer and parser we&#39;ll need to add the &lt;code&gt;FsLexYacc&lt;/code&gt; nuget package as a reference. So our next step is to run:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;dotnet add package FsLexYacc
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The way lexing and parsing works in F# is by generating F# code from two files, a .fsl one that contains the rules for the lexer and a .fsy one that contains the rules for the parser.&lt;/p&gt;
+&lt;p&gt;Lets create them:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;echo &#39;&#39; &amp;gt; Lexer.fsl
+echo &#39;&#39; &amp;gt; Parser.fsy
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Next we&#39;ll need to edit the .fsproj file and add these two lines in the &lt;code&gt;&amp;lt;PropertyGroup&amp;gt;&lt;/code&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-xml&quot;&gt;    &amp;lt;FsLexToolExe&amp;gt;fslex.dll&amp;lt;/FsLexToolExe&amp;gt;
+    &amp;lt;FsYaccToolExe&amp;gt;fsyacc.dll&amp;lt;/FsYaccToolExe&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;and these ones in the &lt;code&gt;&amp;lt;ItemGroup&amp;gt;&lt;/code&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-xml&quot;&gt;    &amp;lt;FsYacc Include=&amp;quot;Parser.fsy&amp;quot;&amp;gt;
+      &amp;lt;OtherFlags&amp;gt;--module Parser&amp;lt;/OtherFlags&amp;gt;
+    &amp;lt;/FsYacc&amp;gt;
+
+    &amp;lt;FsLex Include=&amp;quot;Lexer.fsl&amp;quot;&amp;gt;
+      &amp;lt;OtherFlags&amp;gt;--module Lexer --unicode&amp;lt;/OtherFlags&amp;gt;
+    &amp;lt;/FsLex&amp;gt;
+
+    &amp;lt;Compile Include=&amp;quot;Parser.fsi&amp;quot; /&amp;gt;
+    &amp;lt;Compile Include=&amp;quot;Parser.fs&amp;quot; /&amp;gt;
+    &amp;lt;Compile Include=&amp;quot;Lexer.fs&amp;quot; /&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;What these changes do is basically tell the F# compiler that it has the fslex and fsyacc tools at it&#39;s disposal and it will have to run the transformation of the  &lt;code&gt;Lexer.fsl&lt;/code&gt; and &lt;code&gt;Parser.fsy&lt;/code&gt; files &lt;em&gt;&lt;strong&gt;before&lt;/strong&gt;&lt;/em&gt; the compilation starts. We can even specify the module name that the generated code is part of. I chose to keep it simple with Lexer and Parser.&lt;/p&gt;
+&lt;p&gt;You will notice also that we are including three files (&lt;code&gt;Parser.fsi&lt;/code&gt;, &lt;code&gt;Parser.fs&lt;/code&gt; and &lt;code&gt;Lexer.fs&lt;/code&gt;) that don&#39;t exist as references in our project. These files will be generated from our .fsl and .fsy files by the lexer and parser tools as the output of the transformation I mention above.&lt;/p&gt;
+&lt;p&gt;At this point our project is setup to use the lexer and parser however since we don&#39;t have anything in the &lt;code&gt;Lexer.fsl&lt;/code&gt; and &lt;code&gt;Parser.fsy&lt;/code&gt; files the compilation will fail.&lt;/p&gt;
+&lt;p&gt;So lets add something!&lt;/p&gt;
+&lt;h4&gt;Basic lexing&lt;/h4&gt;
+&lt;hr&gt;
+&lt;p&gt;Lexing is the process of taking raw text and converting it into a sequense of tokens. A token is a string with an assigned meaning.&lt;/p&gt;
+&lt;p&gt;In our case we&#39;ll try to create a lexer and parser that will do something basic, evaluate simple mathematic operations. i.e. 1 + 1 should return 2, -1 + 2 = 1, (1 + 2) - (4 + 1) = -2 etc&lt;/p&gt;
+&lt;p&gt;So, our lexer should identify these tokens:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Number&lt;/li&gt;
+&lt;li&gt;Operator&lt;/li&gt;
+&lt;li&gt;Left Parenthesis&lt;/li&gt;
+&lt;li&gt;Right Parenthesis&lt;/li&gt;
+&lt;li&gt;End of input&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This is the finished Lexer.fsl that tokenizes according to the above rules.&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-fslex&quot;&gt;{
+open FSharp.Text.Lexing
+open Parser
+
+let lexeme lexbuf = LexBuffer&amp;lt;_&amp;gt;.LexemeString lexbuf
+}
+
+let digit = [&#39;0&#39;-&#39;9&#39;]
+let operator = [&#39;+&#39; &#39;-&#39; &#39;*&#39; &#39;/&#39;]
+let whitespace = [&#39; &#39; &#39;\t&#39;]
+
+rule tokenize = parse
+| whitespace        { tokenize lexbuf }
+| [&#39;-&#39;]?digit+      { Number ( System.Int32.Parse( lexeme lexbuf ) ) }
+| operator          { OP ( lexeme lexbuf ) }
+| &#39;(&#39;               { LPAREN }
+| &#39;)&#39;               { RPAREN }
+| eof               { EOF }
+| _                 { lexeme lexbuf |&amp;gt; sprintf &amp;quot;Parsing error: %s&amp;quot; |&amp;gt; failwith }
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Let&#39;s go through it and I&#39;ll explain it bit by bit.&lt;/p&gt;
+&lt;p&gt;First bit:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;{
+open FSharp.Text.Lexing
+open Parser
+
+let lexeme lexbuf = LexBuffer&amp;lt;_&amp;gt;.LexemeString lexbuf
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;I mentioned earlier that Lexer.fsl isn&#39;t written in F# but a custom language. That is true for the rest of this file but not for the bits between the { and }&lt;/p&gt;
+&lt;p&gt;Here we using F# to open the &lt;a href=&quot;http://fsprojects.github.io/FsLexYacc/reference/index.html&quot;&gt;FSharp.Text.Lexing&lt;/a&gt; namespace that we need to access the input buffer &lt;code&gt;LexBuffer&lt;/code&gt; that allows us have a look into what part is being tokenized.&lt;/p&gt;
+&lt;p&gt;We are also opening our own Parser module (the one that will be autogenerated by Parser.fsy). We need that because the definition of the tokens that we want to output is there.&lt;/p&gt;
+&lt;p&gt;Finally, we are declaring a small helping function that returns the matching characters of a token as a string. i.e. the characters 1, 2, 3 would be returned as &amp;quot;123&amp;quot;&lt;/p&gt;
+&lt;p&gt;Second bit:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;let digit = [&#39;0&#39;-&#39;9&#39;]
+let operator = [&#39;+&#39; &#39;-&#39; &#39;*&#39; &#39;/&#39;]
+let whitespace = [&#39; &#39; &#39;\t&#39;]
+
+rule tokenize = parse
+| whitespace        { tokenize lexbuf }
+| [&#39;-&#39;]?digit+      { lexeme lexbuf |&amp;gt; System.Int32.Parse |&amp;gt; Number  }
+| operator          { lexeme lexbuf |&amp;gt; OP }
+| &#39;(&#39;               { LPAREN }
+| &#39;)&#39;               { RPAREN }
+| eof               { EOF }
+| _                 { lexeme lexbuf |&amp;gt; sprintf &amp;quot;Parsing error: %s&amp;quot; |&amp;gt; failwith }
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In this part the actual tokenization process happens.&lt;/p&gt;
+&lt;p&gt;First, for readability, we define what a digit, operator and whitespace are.
+Then we have the actual tokenization function &lt;code&gt;rule tokenize = parse&lt;/code&gt; followed by all the cases we support (with the final one &lt;code&gt;_&lt;/code&gt; handling all the undesired states by just returning an error). These cases are matching against a kind of regular expression.&lt;/p&gt;
+&lt;p&gt;This is what it does&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;In case of whitespace, ignore it. (get the next token)&lt;/li&gt;
+&lt;li&gt;In case of multiple digits even with a - in front then get that string ( &lt;code&gt;lexeme lexbuf&lt;/code&gt; ) then parse it into a System.Int32 and then return that int32 as a Number token. (this Number token will be defined in our Parser.fsy file)&lt;/li&gt;
+&lt;li&gt;In case of a string matching any of our operators then get that string and return the OP symbol&lt;/li&gt;
+&lt;li&gt;In case of a left parenthesis then return the LPAREN symbol&lt;/li&gt;
+&lt;li&gt;In case of a right parenthesis then return the RPAREN symbol&lt;/li&gt;
+&lt;li&gt;When we reach the end of the input given then return the EOF symbol&lt;/li&gt;
+&lt;li&gt;In case we get a character that doesn&#39;t match any of the above rules then we raise an exception.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Remember: Everything between { and } is valid F# code, that&#39;s why we are able to use &lt;code&gt;|&amp;gt;&lt;/code&gt; to cast to the Number and OP symbols.&lt;/p&gt;
+&lt;p&gt;As an example, if we gave
+&lt;code&gt;(1 + 2) + -3&lt;/code&gt;
+the symbols should be
+&lt;code&gt;LPAREN NUMBER(1) OP(&amp;quot;+&amp;quot;) NUMBER(2) RPAREN OP(&amp;quot;+&amp;quot;) NUMBER(-3) EOF&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;That looks good, let&#39;s see how to do the parsing now!&lt;/p&gt;
+&lt;h4&gt;Basic Parsing&lt;/h4&gt;
+&lt;hr&gt;
+&lt;p&gt;Parsing is the process of reading a stream of tokens and attempting to match them to a set of rules with the end result being an abstract syntax tree.&lt;/p&gt;
+&lt;p&gt;In layman&#39;s terms, lexing is the process of defining the alphabet (the actual characters allowed) of your language while parsing is the process of defining the syntax (i.e. subject - verb - object)&lt;/p&gt;
+&lt;p&gt;The syntax that we want to be able to understand is based upon basic math rules.&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;perform an operation between two numbers: &lt;code&gt;NUMBER OP NUMBER&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;perform an operation between a number and another operation that uses parentheses: &lt;code&gt;NUMBER OP (NUMBER OP NUMBER)&lt;/code&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Here&#39;s the end result:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-fsyacc&quot;&gt;%{
+let getOp op = 
+    match op with 
+    | &amp;quot;+&amp;quot; -&amp;gt; ( + )
+    | &amp;quot;-&amp;quot; -&amp;gt; ( - )
+    | &amp;quot;/&amp;quot; -&amp;gt; ( / )
+    | &amp;quot;*&amp;quot; -&amp;gt; ( * )
+    | _ -&amp;gt; failwith &amp;quot;unknown operator&amp;quot;
+%}
+
+%token &amp;lt;int&amp;gt; Number
+%token &amp;lt;string&amp;gt; OP
+%token EOF LPAREN RPAREN
+%start parse
+%type &amp;lt;int&amp;gt; parse
+%%
+
+parse: expr EOF        	     { $1 }
+
+expr: Number                 { $1 }
+    | expr OP expr           { $1 |&amp;gt; (getOp $2) &amp;lt;| $3 }
+    | LPAREN expr RPAREN     { $2 }
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Like with the lexing above, let&#39;s go through it bit by bit.&lt;/p&gt;
+&lt;p&gt;The first part consists of the following F# code.&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-fsharp&quot;&gt;%{
+let getOp op = 
+    match op with 
+    | &amp;quot;+&amp;quot; -&amp;gt; ( + )
+    | &amp;quot;-&amp;quot; -&amp;gt; ( - )
+    | &amp;quot;/&amp;quot; -&amp;gt; ( / )
+    | &amp;quot;*&amp;quot; -&amp;gt; ( * )
+    | _ -&amp;gt; failwith &amp;quot;unknown operator&amp;quot;
+%}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Here, we are declaring an F# function that matches the operator symbols to actual F# mathematical functions and returns them. So it takes a &lt;code&gt;string&lt;/code&gt; argument as input and returns a function of type: &lt;code&gt;Int-&amp;gt;Int-&amp;gt;Int&lt;/code&gt; (i.e. it takes two &lt;code&gt;Int&lt;/code&gt; arguments and returns a result of type &lt;code&gt;Int&lt;/code&gt;)&lt;/p&gt;
+&lt;p&gt;Next, we have the token definitions. Notice that the Tokens &lt;code&gt;Number&lt;/code&gt; and &lt;code&gt;OP&lt;/code&gt; have .net types.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;%token &amp;lt;int&amp;gt; Number
+%token &amp;lt;string&amp;gt; OP
+%token EOF LPAREN RPAREN
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Right after that we specify to the parser what rule it should use as a start and what .net type the parsing operation will return:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;%start parse
+%type &amp;lt;int&amp;gt; parse
+%%
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Finally, we have the actual rules. These rules declare what syntax is valid in our &lt;em&gt;language&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;Let&#39;s go through them one at a time.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;parse: expr EOF        	     { $1 }
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;We are parsing a single expression and we expect the EOF symbol right after. The part between the { and } is a sort of substitution. The &lt;code&gt;parse&lt;/code&gt; rule expects an expression and an &lt;code&gt;EOF&lt;/code&gt; symbol and we only care about the first argument, hence $1 (i.e. try to parse the &lt;code&gt;expr&lt;/code&gt;)&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;expr: Number                 { $1 }
+    | expr OP expr           { $1 |&amp;gt; (getOp $2) &amp;lt;| $3 }
+    | LPAREN expr RPAREN     { $2 }
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This is a bit more complicated. You can see that an &lt;code&gt;expr&lt;/code&gt; can be different things. The rule is also recursive.&lt;/p&gt;
+&lt;p&gt;It basically states that an expression can be&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;a number&lt;/li&gt;
+&lt;li&gt;an expression followed by an operator symbol and another expression&lt;/li&gt;
+&lt;li&gt;a left parenthesis symbol followed by an expression followed by a right parenthesis symbol.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;You can also notice that in the second case, we are calling the &lt;code&gt;getOp&lt;/code&gt; function we declared earlier instead of just propagating the operator symbol. So in the generated code the &lt;code&gt;+&lt;/code&gt; operator will not be a simple &lt;code&gt;string&lt;/code&gt; type variable but an &lt;code&gt;Int-&amp;gt;Int-&amp;gt;Int&lt;/code&gt; function.&lt;/p&gt;
+&lt;p&gt;Let&#39;s try and use the input from the lexing example.&lt;/p&gt;
+&lt;p&gt;The initial input was&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;(1 + 2) + -3
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;and the symbols we got were:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;LPAREN NUMBER(1) OP(&amp;quot;+&amp;quot;) NUMBER(2) RPAREN OP(&amp;quot;+&amp;quot;) NUMBER(-3) EOF
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The symbols are matched against the &lt;code&gt;parse&lt;/code&gt; rule and they give us this abstract syntax tree.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;                   expr op expr
+                  /     |      \
+                 /    OP(&amp;quot;+&amp;quot;)   NUMBER(-3)
+                /            
+       LPAREN expr RPAREN    
+               |                
+          expr op expr         
+         /     |      \         
+NUMBER(1)    OP(&amp;quot;+&amp;quot;)   NUMBER(2) 
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That would basically be translated and executed like this:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;NUMBER(1) OP(&amp;quot;+&amp;quot;) NUMBER(2)&lt;/code&gt; translates to &lt;code&gt;1 |&amp;gt; (+) &amp;lt;| 2&lt;/code&gt; and results in 3&lt;/li&gt;
+&lt;li&gt;the evaluation of that expression becomes the first argument for the next expression&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;NUMBER(3) OP(&amp;quot;+&amp;quot;) NUMBER(-3)&lt;/code&gt; translates to &lt;code&gt;3 |&amp;gt; (+) &amp;lt;| -3&lt;/code&gt; and results in 0&lt;/li&gt;
+&lt;li&gt;the evaluation of that expression becomes the value that &lt;code&gt;parse&lt;/code&gt; returns.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h4&gt;Tying it all together&lt;/h4&gt;
+&lt;hr&gt;
+&lt;p&gt;We have the lexer and parser all ready. If&#39;s finally the time to use them!&lt;/p&gt;
+&lt;p&gt;Open &lt;code&gt;Program.fs&lt;/code&gt; and replace the code with this:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-fsharp&quot;&gt;open System
+open FSharp.Text.Lexing
+open Lexer
+open Parser
+
+let evaluate (input:string) =
+  let lexbuf = LexBuffer&amp;lt;char&amp;gt;.FromString input
+  let output = Parser.parse Lexer.tokenize lexbuf
+  string output
+
+[&amp;lt;EntryPoint&amp;gt;]
+let main argv =
+
+    printfn &amp;quot;Press Ctrl+c to Exit&amp;quot;
+
+    while true do
+        printf &amp;quot;Evaluate &amp;gt; &amp;quot;
+        let input = Console.ReadLine()
+        try
+            let result = evaluate input
+            printfn &amp;quot;%s&amp;quot; result
+        with ex -&amp;gt; printfn &amp;quot;%s&amp;quot; (ex.ToString())
+
+    0 // return an integer exit code
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This is a very simple &lt;code&gt;main&lt;/code&gt; function that will continue to loop until the user closes the program. It just takes the user&#39;s input and calls the &lt;code&gt;evaluate&lt;/code&gt; function declared in the beginning of the program.&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;evaluate&lt;/code&gt; function does a couple interesting things.&lt;/p&gt;
+&lt;p&gt;First, it creates a lex buffer from the input string given by the user: &lt;code&gt;let lexbuf = LexBuffer&amp;lt;char&amp;gt;.FromString input&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Next, it uses that buffer and the &lt;code&gt;Lexer.tokenize&lt;/code&gt; function we declared in the lexer as input to the &lt;code&gt;Parser.Parse&lt;/code&gt; function we declared in our parser : &lt;code&gt;let output = Parser.parse Lexer.tokenize lexbuf&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Finally, it converts the output from &lt;code&gt;int&lt;/code&gt; to &lt;code&gt;string&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;That&#39;s it. Now we can open our terminal and type &lt;code&gt;dotnet run&lt;/code&gt; and we should be greeted with:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;Press Ctrl+c to Exit
+Evaluate &amp;gt; 
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Try entering: &lt;code&gt;(1 + 2) + -3&lt;/code&gt; and see if it will evaluate to &lt;code&gt;0&lt;/code&gt;. Try any number of complicated expressions and see if the result matches what you expect. Have a look at what happens if you use illegal characters.&lt;/p&gt;
+&lt;p&gt;Try replacing the &lt;code&gt;expr&lt;/code&gt; with this equivalent:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;expr: Number                 { $1 }
+    | OP expr expr           { (getOp $1) $2 $3 }
+    | LPAREN expr RPAREN     { $2 }
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After we recompile, suddenly our parser will be expecting that we use &lt;a href=&quot;https://en.wikipedia.org/wiki/Polish_notation&quot;&gt;polish notation!&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;If you want to understand this a bit better I would encourage you to start tinkering with the parser. Try coming up with your own rules!&lt;/p&gt;
+&lt;p&gt;As always,&lt;/p&gt;
+&lt;p&gt;Happy coding!&lt;/p&gt;
+&lt;p&gt;&lt;code&gt; &lt;/code&gt;&lt;br&gt;
+&lt;code&gt; &lt;/code&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h6&gt;Some interesting sites to have a look&lt;/h6&gt;
+&lt;p&gt;If you want to have a look at the final project, instead of typing it you can get it &lt;a href=&quot;https://github.com/ThanosPapathanasiou/personal-blog/tree/master/code-examples/lexing-and-parsing&quot;&gt;here&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;If you want to get into parsing and lexing and expand your understanding a bit more you can have a look at these sites:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&quot;https://en.wikibooks.org/wiki/F_Sharp_Programming/Lexing_and_Parsing&quot;&gt;F# programming wikibooks&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://caml.inria.fr/pub/docs/manual-ocaml/lexyacc.html#s:lexyacc-example&quot;&gt;OCaml&#39;s lexyacc examples&lt;/a&gt; (F#&#39;s lexyacc is basically identical to the OCaml one)&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;If you want to understand a bit more about the abstract syntax trees then you can read wikipedia&#39;s entry on &lt;a href=&quot;https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form&quot;&gt;Backus-Naur form&lt;/a&gt;&lt;/p&gt;
 </content>
   </entry>
 </feed>

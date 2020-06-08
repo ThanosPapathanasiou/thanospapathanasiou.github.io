@@ -1,0 +1,140 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no"><meta name="author" content="Thanos Papathanasiou"><meta name="title" property="og:title" content="Random coding knowledge | Using FSLexYacc, the F# lexer and parser"><meta name="description" property="og:description" content="How to set up your project to work with the lexing and parsing F# tools."><meta name="keywords" content=".net, C#, F#"><title>Random coding knowledge | Using FSLexYacc, the F# lexer and parser</title><link rel="stylesheet" href="/assets/style.css"><link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous"><script src="https://kit.fontawesome.com/539dbb669b.js" crossorigin="anonymous"></script><script async src="https://www.googletagmanager.com/gtag/js?id=UA-168808326-1"></script><script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'UA-168808326-1');</script></head><body><nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top"><div class="container"><a class="navbar-brand" href="/">Random coding knowledge</a> <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button><div id="navbarResponsive" class="collapse navbar-collapse"><ul class="navbar-nav ml-auto"><li class="nav-item"><a class="nav-link" href="/">Home</a></li><li class="nav-item"><a class="nav-link" href="/about/">About</a></li></ul></div></div></nav><div class="container"><div class="row"><div class="col-md-12"><h1 class="my-4">Using FSLexYacc, the F# lexer and parser</h1><hr><p>Lately I've been playing around with F# and specifically with using it for lexing and parsing. I've had to dig around a bit to get all the information needed to understand how to get a simple project up and running so I thought compiling that information would be a good idea.</p><p>Here's a step by step instruction to help you get up and running.</p><h4>Setting up a project to work with FsLexYacc</h4><hr><p>Let's start with a brand new F# console app:</p><pre><code class="language-bash">mkdir lexing-and-parsing
+cd lexing-and-parsing
+dotnet new console -lang=F#
+dotnet run
+</code></pre><p>That should give us the default console output:</p><pre><code>Hello world from F#
+</code></pre><p>In order to use the F# lexer and parser we'll need to add the <code>FsLexYacc</code> nuget package as a reference. So our next step is to run:</p><pre><code class="language-bash">dotnet add package FsLexYacc
+</code></pre><p>The way lexing and parsing works in F# is by generating F# code from two files, a .fsl one that contains the rules for the lexer and a .fsy one that contains the rules for the parser.</p><p>Lets create them:</p><pre><code class="language-bash">echo '' &gt; Lexer.fsl
+echo '' &gt; Parser.fsy
+</code></pre><p>Next we'll need to edit the .fsproj file and add these two lines in the <code>&lt;PropertyGroup&gt;</code></p><pre><code class="language-xml">    &lt;FsLexToolExe&gt;fslex.dll&lt;/FsLexToolExe&gt;
+    &lt;FsYaccToolExe&gt;fsyacc.dll&lt;/FsYaccToolExe&gt;
+</code></pre><p>and these ones in the <code>&lt;ItemGroup&gt;</code></p><pre><code class="language-xml">    &lt;FsYacc Include=&quot;Parser.fsy&quot;&gt;
+      &lt;OtherFlags&gt;--module Parser&lt;/OtherFlags&gt;
+    &lt;/FsYacc&gt;
+
+    &lt;FsLex Include=&quot;Lexer.fsl&quot;&gt;
+      &lt;OtherFlags&gt;--module Lexer --unicode&lt;/OtherFlags&gt;
+    &lt;/FsLex&gt;
+
+    &lt;Compile Include=&quot;Parser.fsi&quot; /&gt;
+    &lt;Compile Include=&quot;Parser.fs&quot; /&gt;
+    &lt;Compile Include=&quot;Lexer.fs&quot; /&gt;
+</code></pre><p>What these changes do is basically tell the F# compiler that it has the fslex and fsyacc tools at it's disposal and it will have to run the transformation of the <code>Lexer.fsl</code> and <code>Parser.fsy</code> files <em><strong>before</strong></em> the compilation starts. We can even specify the module name that the generated code is part of. I chose to keep it simple with Lexer and Parser.</p><p>You will notice also that we are including three files (<code>Parser.fsi</code>, <code>Parser.fs</code> and <code>Lexer.fs</code>) that don't exist as references in our project. These files will be generated from our .fsl and .fsy files by the lexer and parser tools as the output of the transformation I mention above.</p><p>At this point our project is setup to use the lexer and parser however since we don't have anything in the <code>Lexer.fsl</code> and <code>Parser.fsy</code> files the compilation will fail.</p><p>So lets add something!</p><h4>Basic lexing</h4><hr><p>Lexing is the process of taking raw text and converting it into a sequense of tokens. A token is a string with an assigned meaning.</p><p>In our case we'll try to create a lexer and parser that will do something basic, evaluate simple mathematic operations. i.e. 1 + 1 should return 2, -1 + 2 = 1, (1 + 2) - (4 + 1) = -2 etc</p><p>So, our lexer should identify these tokens:</p><ul><li>Number</li><li>Operator</li><li>Left Parenthesis</li><li>Right Parenthesis</li><li>End of input</li></ul><p>This is the finished Lexer.fsl that tokenizes according to the above rules.</p><pre><code class="language-fslex">{
+open FSharp.Text.Lexing
+open Parser
+
+let lexeme lexbuf = LexBuffer&lt;_&gt;.LexemeString lexbuf
+}
+
+let digit = ['0'-'9']
+let operator = ['+' '-' '*' '/']
+let whitespace = [' ' '\t']
+
+rule tokenize = parse
+| whitespace        { tokenize lexbuf }
+| ['-']?digit+      { Number ( System.Int32.Parse( lexeme lexbuf ) ) }
+| operator          { OP ( lexeme lexbuf ) }
+| '('               { LPAREN }
+| ')'               { RPAREN }
+| eof               { EOF }
+| _                 { lexeme lexbuf |&gt; sprintf &quot;Parsing error: %s&quot; |&gt; failwith }
+</code></pre><p>Let's go through it and I'll explain it bit by bit.</p><p>First bit:</p><pre><code>{
+open FSharp.Text.Lexing
+open Parser
+
+let lexeme lexbuf = LexBuffer&lt;_&gt;.LexemeString lexbuf
+}
+</code></pre><p>I mentioned earlier that Lexer.fsl isn't written in F# but a custom language. That is true for the rest of this file but not for the bits between the { and }</p><p>Here we using F# to open the <a href="http://fsprojects.github.io/FsLexYacc/reference/index.html">FSharp.Text.Lexing</a> namespace that we need to access the input buffer <code>LexBuffer</code> that allows us have a look into what part is being tokenized.</p><p>We are also opening our own Parser module (the one that will be autogenerated by Parser.fsy). We need that because the definition of the tokens that we want to output is there.</p><p>Finally, we are declaring a small helping function that returns the matching characters of a token as a string. i.e. the characters 1, 2, 3 would be returned as &quot;123&quot;</p><p>Second bit:</p><pre><code>let digit = ['0'-'9']
+let operator = ['+' '-' '*' '/']
+let whitespace = [' ' '\t']
+
+rule tokenize = parse
+| whitespace        { tokenize lexbuf }
+| ['-']?digit+      { lexeme lexbuf |&gt; System.Int32.Parse |&gt; Number  }
+| operator          { lexeme lexbuf |&gt; OP }
+| '('               { LPAREN }
+| ')'               { RPAREN }
+| eof               { EOF }
+| _                 { lexeme lexbuf |&gt; sprintf &quot;Parsing error: %s&quot; |&gt; failwith }
+</code></pre><p>In this part the actual tokenization process happens.</p><p>First, for readability, we define what a digit, operator and whitespace are. Then we have the actual tokenization function <code>rule tokenize = parse</code> followed by all the cases we support (with the final one <code>_</code> handling all the undesired states by just returning an error). These cases are matching against a kind of regular expression.</p><p>This is what it does</p><ol><li>In case of whitespace, ignore it. (get the next token)</li><li>In case of multiple digits even with a - in front then get that string ( <code>lexeme lexbuf</code> ) then parse it into a System.Int32 and then return that int32 as a Number token. (this Number token will be defined in our Parser.fsy file)</li><li>In case of a string matching any of our operators then get that string and return the OP symbol</li><li>In case of a left parenthesis then return the LPAREN symbol</li><li>In case of a right parenthesis then return the RPAREN symbol</li><li>When we reach the end of the input given then return the EOF symbol</li><li>In case we get a character that doesn't match any of the above rules then we raise an exception.</li></ol><p>Remember: Everything between { and } is valid F# code, that's why we are able to use <code>|&gt;</code> to cast to the Number and OP symbols.</p><p>As an example, if we gave <code>(1 + 2) + -3</code> the symbols should be <code>LPAREN NUMBER(1) OP(&quot;+&quot;) NUMBER(2) RPAREN OP(&quot;+&quot;) NUMBER(-3) EOF</code></p><p>That looks good, let's see how to do the parsing now!</p><h4>Basic Parsing</h4><hr><p>Parsing is the process of reading a stream of tokens and attempting to match them to a set of rules with the end result being an abstract syntax tree.</p><p>In layman's terms, lexing is the process of defining the alphabet (the actual characters allowed) of your language while parsing is the process of defining the syntax (i.e. subject - verb - object)</p><p>The syntax that we want to be able to understand is based upon basic math rules.</p><ol><li>perform an operation between two numbers: <code>NUMBER OP NUMBER</code></li><li>perform an operation between a number and another operation that uses parentheses: <code>NUMBER OP (NUMBER OP NUMBER)</code></li></ol><p>Here's the end result:</p><pre><code class="language-fsyacc">%{
+let getOp op = 
+    match op with 
+    | &quot;+&quot; -&gt; ( + )
+    | &quot;-&quot; -&gt; ( - )
+    | &quot;/&quot; -&gt; ( / )
+    | &quot;*&quot; -&gt; ( * )
+    | _ -&gt; failwith &quot;unknown operator&quot;
+%}
+
+%token &lt;int&gt; Number
+%token &lt;string&gt; OP
+%token EOF LPAREN RPAREN
+%start parse
+%type &lt;int&gt; parse
+%%
+
+parse: expr EOF        	     { $1 }
+
+expr: Number                 { $1 }
+    | expr OP expr           { $1 |&gt; (getOp $2) &lt;| $3 }
+    | LPAREN expr RPAREN     { $2 }
+</code></pre><p>Like with the lexing above, let's go through it bit by bit.</p><p>The first part consists of the following F# code.</p><pre><code class="language-fsharp">%{
+let getOp op = 
+    match op with 
+    | &quot;+&quot; -&gt; ( + )
+    | &quot;-&quot; -&gt; ( - )
+    | &quot;/&quot; -&gt; ( / )
+    | &quot;*&quot; -&gt; ( * )
+    | _ -&gt; failwith &quot;unknown operator&quot;
+%}
+</code></pre><p>Here, we are declaring an F# function that matches the operator symbols to actual F# mathematical functions and returns them. So it takes a <code>string</code> argument as input and returns a function of type: <code>Int-&gt;Int-&gt;Int</code> (i.e. it takes two <code>Int</code> arguments and returns a result of type <code>Int</code>)</p><p>Next, we have the token definitions. Notice that the Tokens <code>Number</code> and <code>OP</code> have .net types.</p><pre><code>%token &lt;int&gt; Number
+%token &lt;string&gt; OP
+%token EOF LPAREN RPAREN
+</code></pre><p>Right after that we specify to the parser what rule it should use as a start and what .net type the parsing operation will return:</p><pre><code>%start parse
+%type &lt;int&gt; parse
+%%
+</code></pre><p>Finally, we have the actual rules. These rules declare what syntax is valid in our <em>language</em>.</p><p>Let's go through them one at a time.</p><pre><code>parse: expr EOF        	     { $1 }
+</code></pre><p>We are parsing a single expression and we expect the EOF symbol right after. The part between the { and } is a sort of substitution. The <code>parse</code> rule expects an expression and an <code>EOF</code> symbol and we only care about the first argument, hence $1 (i.e. try to parse the <code>expr</code>)</p><pre><code>expr: Number                 { $1 }
+    | expr OP expr           { $1 |&gt; (getOp $2) &lt;| $3 }
+    | LPAREN expr RPAREN     { $2 }
+</code></pre><p>This is a bit more complicated. You can see that an <code>expr</code> can be different things. The rule is also recursive.</p><p>It basically states that an expression can be</p><ul><li>a number</li><li>an expression followed by an operator symbol and another expression</li><li>a left parenthesis symbol followed by an expression followed by a right parenthesis symbol.</li></ul><p>You can also notice that in the second case, we are calling the <code>getOp</code> function we declared earlier instead of just propagating the operator symbol. So in the generated code the <code>+</code> operator will not be a simple <code>string</code> type variable but an <code>Int-&gt;Int-&gt;Int</code> function.</p><p>Let's try and use the input from the lexing example.</p><p>The initial input was</p><pre><code>(1 + 2) + -3
+</code></pre><p>and the symbols we got were:</p><pre><code>LPAREN NUMBER(1) OP(&quot;+&quot;) NUMBER(2) RPAREN OP(&quot;+&quot;) NUMBER(-3) EOF
+</code></pre><p>The symbols are matched against the <code>parse</code> rule and they give us this abstract syntax tree.</p><pre><code>                   expr op expr
+                  /     |      \
+                 /    OP(&quot;+&quot;)   NUMBER(-3)
+                /            
+       LPAREN expr RPAREN    
+               |                
+          expr op expr         
+         /     |      \         
+NUMBER(1)    OP(&quot;+&quot;)   NUMBER(2) 
+</code></pre><p>That would basically be translated and executed like this:</p><ol><li><code>NUMBER(1) OP(&quot;+&quot;) NUMBER(2)</code> translates to <code>1 |&gt; (+) &lt;| 2</code> and results in 3</li><li>the evaluation of that expression becomes the first argument for the next expression</li><li><code>NUMBER(3) OP(&quot;+&quot;) NUMBER(-3)</code> translates to <code>3 |&gt; (+) &lt;| -3</code> and results in 0</li><li>the evaluation of that expression becomes the value that <code>parse</code> returns.</li></ol><h4>Tying it all together</h4><hr><p>We have the lexer and parser all ready. If's finally the time to use them!</p><p>Open <code>Program.fs</code> and replace the code with this:</p><pre><code class="language-fsharp">open System
+open FSharp.Text.Lexing
+open Lexer
+open Parser
+
+let evaluate (input:string) =
+  let lexbuf = LexBuffer&lt;char&gt;.FromString input
+  let output = Parser.parse Lexer.tokenize lexbuf
+  string output
+
+[&lt;EntryPoint&gt;]
+let main argv =
+
+    printfn &quot;Press Ctrl+c to Exit&quot;
+
+    while true do
+        printf &quot;Evaluate &gt; &quot;
+        let input = Console.ReadLine()
+        try
+            let result = evaluate input
+            printfn &quot;%s&quot; result
+        with ex -&gt; printfn &quot;%s&quot; (ex.ToString())
+
+    0 // return an integer exit code
+</code></pre><p>This is a very simple <code>main</code> function that will continue to loop until the user closes the program. It just takes the user's input and calls the <code>evaluate</code> function declared in the beginning of the program.</p><p>The <code>evaluate</code> function does a couple interesting things.</p><p>First, it creates a lex buffer from the input string given by the user: <code>let lexbuf = LexBuffer&lt;char&gt;.FromString input</code></p><p>Next, it uses that buffer and the <code>Lexer.tokenize</code> function we declared in the lexer as input to the <code>Parser.Parse</code> function we declared in our parser : <code>let output = Parser.parse Lexer.tokenize lexbuf</code></p><p>Finally, it converts the output from <code>int</code> to <code>string</code></p><p>That's it. Now we can open our terminal and type <code>dotnet run</code> and we should be greeted with:</p><pre><code class="language-bash">Press Ctrl+c to Exit
+Evaluate &gt; 
+</code></pre><p>Try entering: <code>(1 + 2) + -3</code> and see if it will evaluate to <code>0</code>. Try any number of complicated expressions and see if the result matches what you expect. Have a look at what happens if you use illegal characters.</p><p>Try replacing the <code>expr</code> with this equivalent:</p><pre><code>expr: Number                 { $1 }
+    | OP expr expr           { (getOp $1) $2 $3 }
+    | LPAREN expr RPAREN     { $2 }
+</code></pre><p>After we recompile, suddenly our parser will be expecting that we use <a href="https://en.wikipedia.org/wiki/Polish_notation">polish notation!</a></p><p>If you want to understand this a bit better I would encourage you to start tinkering with the parser. Try coming up with your own rules!</p><p>As always,</p><p>Happy coding!</p><p><code></code><br><code></code></p><hr><h6>Some interesting sites to have a look</h6><p>If you want to have a look at the final project, instead of typing it you can get it <a href="https://github.com/ThanosPapathanasiou/personal-blog/tree/master/code-examples/lexing-and-parsing">here</a></p><p>If you want to get into parsing and lexing and expand your understanding a bit more you can have a look at these sites:</p><ol><li><a href="https://en.wikibooks.org/wiki/F_Sharp_Programming/Lexing_and_Parsing">F# programming wikibooks</a></li><li><a href="https://caml.inria.fr/pub/docs/manual-ocaml/lexyacc.html#s:lexyacc-example">OCaml's lexyacc examples</a> (F#'s lexyacc is basically identical to the OCaml one)</li></ol><p>If you want to understand a bit more about the abstract syntax trees then you can read wikipedia's entry on <a href="https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form">Backus-Naur form</a></p></div></div></div><footer class="py-5 bg-dark"><div class="container"><div class="row"><div class="social col-md-12 text-center"><a href="/feed.xml" class="button"><i class="fas fa-2x fa-rss-square"></i></a> <a href="https://github.com/ThanosPapathanasiou" class="button"><i class="fab fa-2x fa-github-square"></i></a> <a href="mailto:thanospapathanasiou@hotmail.com" class="button"><i class="fas fa-2x fa-envelope-square"></i></a> <a href="https://stackoverflow.com/users/248718" class="button"><i class="fab fa-2x fa-stack-overflow"></i></a> <a href="https://twitter.com/ThanosPapathan" class="button"><i class="fab fa-2x fa-twitter-square"></i></a> <a href="https://www.linkedin.com/in/thanospapathanasiou/" class="button"><i class="fab fa-2x fa-linkedin"></i></a></div></div><div class="row"><div class="col-md-12"><br></div></div><div class="row"><div class="col-md-12"><p class="m-0 text-center text-white">Random coding knowledge</p></div></div><div class="row"><div class="col-md-12"><p class="m-0 text-center text-white">Thanos Papathanasiou</p></div></div></div></footer><script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script><script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script></body></html>
