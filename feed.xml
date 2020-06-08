@@ -368,7 +368,19 @@ Let&#39;s say that the name of that folder is &lt;code&gt;setting-up-eleventy-to
     <updated>2020-06-08T01:00:00+01:00</updated>
     <id>https://thanos.codes/blog/using-fslexyacc-the-fsharp-lexer-and-parser/</id>
     <content type="html">&lt;p&gt;Lately I&#39;ve been playing around with F# and specifically with using it for lexing and parsing. I&#39;ve had to dig around a bit to get all the information needed to understand how to get a simple project up and running so I thought compiling that information would be a good idea.&lt;/p&gt;
-&lt;p&gt;Here&#39;s a step by step instruction to help you get up and running.&lt;/p&gt;
+&lt;p&gt;This is going to be a tutorial that will help you setup a simple F# console application that will read the user&#39;s input and will try to evaluate it based on the basic math syntax that we will declare.&lt;/p&gt;
+&lt;p&gt;It should be able to evaluate input like:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;1 + 1&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;(1 + -2) - (6 / 3)&lt;/code&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Pretty advanced stuff, I know :D&lt;/p&gt;
+&lt;p&gt;If you don&#39;t feel like typing everything and just want to download the &lt;a href=&quot;https://github.com/ThanosPapathanasiou/personal-blog/tree/master/code-examples/lexing-and-parsing&quot;&gt;code&lt;/a&gt; and start tinkering then try the following:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;npm install -g github-files-fetcher
+github-files-fetcher -url=&amp;quot;https://github.com/ThanosPapathanasiou/personal-blog/tree/master/code-examples/lexing-and-parsing&amp;quot;
+code lexing-and-parsing
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Otherwise, here&#39;s a step by step instruction to help you get up and running.&lt;/p&gt;
 &lt;h4&gt;Setting up a project to work with FsLexYacc&lt;/h4&gt;
 &lt;hr&gt;
 &lt;p&gt;Let&#39;s start with a brand new F# console app:&lt;/p&gt;
